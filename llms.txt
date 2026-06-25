@@ -1,0 +1,8 @@
+# nacha-bridge-mcp
+# CSOAI Layer-0 legacy-bridge. Bridge NACHA / ACH payment files to ONE OS — parse, validate, map, govern (NACHA rules / OFAC / BSA-AML).
+
+## Install
+```bash
+pip install -e .
+python server.py
+```
