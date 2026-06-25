@@ -11,6 +11,22 @@ from typing import List, Dict, Any
 
 mcp = FastMCP("NACHA Bridge", instructions="Bridge NACHA / ACH payment files to ONE OS — parse, validate, map, govern (NACHA rules / OFAC).")
 
+# ── SIGIL: every governed action → one signed hash-chained hop (SIGIL_LOG unifies all layers) ──
+import hashlib as _hl, time as _t, json as _j, os as _os
+_SIGIL_LOG = _os.environ.get("SIGIL_LOG", _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "bridge_sigil.log"))
+def _sigil(op, body):
+    try:
+        prev = ""
+        if _os.path.exists(_SIGIL_LOG):
+            with open(_SIGIL_LOG) as f:
+                ls = f.readlines()
+                if ls: prev = _j.loads(ls[-1]).get("digest", "")
+        ts = int(_t.time()); dg = _hl.sha256(f"{op}|{ts}|{prev[:8]}|{body}".encode()).hexdigest()[:16]
+        _os.makedirs(_os.path.dirname(_SIGIL_LOG), exist_ok=True)
+        with open(_SIGIL_LOG, "a") as f: f.write(_j.dumps({"ts": ts, "op": op, "body": body, "prev_digest": prev, "digest": dg}) + "\n")
+        return dg
+    except Exception: return ""
+
 REC = {"1": "File Header", "5": "Batch Header", "6": "Entry Detail", "7": "Addenda", "8": "Batch Control", "9": "File Control"}
 
 
@@ -82,6 +98,7 @@ def map_to_modern(file_text: str) -> Dict[str, Any]:
 @mcp.tool()
 def govern_ach(file_text: str) -> Governance:
     """Governance: ACH risk surface — SEC code, OFAC, same-day exposure (attestable for CSOAI)."""
+    _sigil("G", "nacha|govern_ach")
     p = parse_nacha(file_text)
     flags = []
     if any(c in ("WEB", "TEL") for c in p.sec_codes):
